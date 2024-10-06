@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Quiz</title>
+    <!-- Add the link to the new CSS file -->
+    <link rel="stylesheet" href="/style.css">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <!-- Wrap the main content in a container div -->
+    <div class="container">
+        <h1>Create a Quiz</h1>
+        <form id="quizForm">
+            <label for="quizTitle">Quiz Title:</label>
+            <input type="text" id="quizTitle" required>
+
+            <div id="questionsContainer">
+                <div class="question">
+                    <label>Question 1:</label>
+                    <input type="text" class="questionText" required>
+                    <label>Options:</label>
+                    <input type="text" class="option" required>
+                    <input type="text" class="option" required>
+                    <input type="text" class="option" required>
+                    <input type="text" class="option" required>
+                    <label>Correct Answer (1-4):</label>
+                    <input type="number" class="correctAnswer" min="1" max="4" required>
+                    <label>Marks:</label>
+                    <input type="number" class="marks" min="1" value="1" required>
+                </div>
+            </div>
+
+            <button type="button" onclick="addQuestion()">Add Question</button>
+            <button type="submit">Create Quiz</button>
+        </form>
+
+        <p id="roomId"></p>
+        <button id="copyButton" style="display: none;" onclick="copyRoomId()">Copy Room ID</button>
+    </div>
+    
+    <script>
+        const socket = io();
+
+        document.getElementById('quizForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            createQuiz();
+        });
+
+        function addQuestion() {
+            const container = document.getElementById('questionsContainer');
+            const questionCount = container.getElementsByClassName('question').length + 1;
+
+            const questionDiv = document.createElement('div');
+            questionDiv.classList.add('question');
+            questionDiv.innerHTML = `
+                <label>Question ${questionCount}:</label><br>
+                <input type="text" class="questionText" required><br>
+                <label>Options:</label><br>
+                <input type="text" class="option" required><br>
+                <input type="text" class="option" required><br>
+                <input type="text" class="option" required><br>
+                <input type="text" class="option" required><br>
+                <label>Correct Answer (1-4):</label>
+                <input type="number" class="correctAnswer" min="1" max="4" required><br>
+                <label>Marks:</label>
+                <input type="number" class="marks" min="1" value="1" required><br><br>
+            `;
+            container.appendChild(questionDiv);
+        }
+
+        function copyRoomId() {
+            const roomId = document.getElementById('roomId').textContent;
+            const textToCopy = roomId.split(': ')[1];  // Extract just the room ID
+
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                alert('Room ID copied to clipboard!');
+                window.location.href = 'index.html';  // Redirect to homepage after copying
+            }).catch(err => {
+                alert('Failed to copy the room ID: ' + err);
+            });
+        }
+
+        function createQuiz() {
+            const title = document.getElementById('quizTitle').value;
+            const questions = Array.from(document.getElementsByClassName('question')).map(q => {
+                return {
+                    text: q.querySelector('.questionText').value,
+                    options: Array.from(q.getElementsByClassName('option')).map(o => o.value),
+                    correctAnswer: parseInt(q.querySelector('.correctAnswer').value) - 1,
+                    marks: parseInt(q.querySelector('.marks').value)
+                };
+            });
+
+            socket.emit('createQuiz', { title, questions });
+        }
+
+        
+        socket.on('quizCreated', (data) => {
+            document.getElementById('roomId').textContent = `Quiz Created! Room ID: ${data.roomId}`;
+            document.getElementById('copyButton').style.display = 'inline';  // Show Copy button
+        });
+
+    </script>
+</body>
+</html>

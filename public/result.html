@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Results</title>
+    <!-- Add the link to the new CSS file -->
+    <link rel="stylesheet" href="style.css">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <!-- Wrap the main content in a container div -->
+    <div class="container">
+        <h1>Quiz Results</h1>
+        <form id="resultForm">
+            <label for="roomId">Enter Room ID to View Results:</label>
+            <input type="text" id="roomId" required>
+            <button type="submit">View Results</button>
+        </form>
+
+        <div id="results"></div>
+
+        <!-- Add a link to return to the home page -->
+        <p><a href="/">Return to Home</a></p>
+    </div>
+
+    <script>
+        const socket = io();
+
+        // Handle form submission to fetch results
+        document.getElementById('resultForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const roomId = document.getElementById('roomId').value;
+    
+            // Emit 'getResults' event to server
+            socket.emit('getResults', { roomId });
+        });
+
+        // Display results sent from the server
+        socket.on('quizResults', (participants) => {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';  // Clear any previous results
+    
+            if (participants.length === 0) {
+                resultsDiv.innerHTML = '<p>No participants found for this quiz.</p>';
+            } else {
+                resultsDiv.innerHTML = '<h2>Participants Results:</h2>';
+                // Show results for each participant
+                participants.forEach(p => {
+                    resultsDiv.innerHTML += `<p>${p.name}: ${p.score !== undefined ? p.score : 'Not submitted'} points</p>`;
+                });
+            }
+        });
+
+        // Display error message if room is not found
+        socket.on('error', (message) => {
+            document.getElementById('results').innerHTML = `<p style="color:red;">${message}</p>`;
+        });
+    </script>
+</body>
+</html>

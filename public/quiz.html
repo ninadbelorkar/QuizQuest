@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz</title>
+    <!-- Add the link to the new CSS file -->
+    <link rel="stylesheet" href="style.css">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <!-- Wrap the main content in a container div -->
+    <div class="container">
+        <h1>Join Quiz</h1>
+        <!-- Join Quiz Form -->
+        <form id="joinForm">
+            <label for="roomId">Room ID:</label>
+            <input type="text" id="roomId" required>
+
+            <label for="name">Your Name:</label>
+            <input type="text" id="name" required>
+
+            <button type="submit">Join Quiz</button>
+        </form>
+
+        <!-- Quiz Form (Hidden until quiz is joined) -->
+        <form id="quizForm" style="display:none">
+            <!-- Questions will be dynamically inserted here -->
+        </form>
+
+        <!-- Results Section (Hidden initially) -->
+        <div id="results" style="display:none">
+            <!-- Quiz results will be displayed here -->
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+
+        // Function to join a quiz
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('joinForm').addEventListener('submit', function (e) {
+                e.preventDefault();
+                const roomId = document.getElementById('roomId').value;
+                const name = document.getElementById('name').value;
+
+                if (roomId && name) {
+                    // Emit joinQuiz event to the server
+                    socket.emit('joinQuiz', { roomId, name });
+                } else {
+                    alert("Please fill in both fields.");
+                }
+            });
+        });
+
+        // Listen for 'quizJoined' event from the server
+        socket.on('quizJoined', (data) => {
+            const { room, questions } = data;
+
+            // Hide the join form
+            document.getElementById('joinForm').style.display = 'none';
+
+            // Show a success message
+            const messageDiv = document.createElement('div');
+            messageDiv.textContent = `Successfully joined quiz: ${room.title}`;
+            document.body.appendChild(messageDiv);
+
+            // Display quiz questions
+            const quizForm = document.getElementById('quizForm');
+            quizForm.style.display = 'block';
+            quizForm.innerHTML = '';  // Clear previous content
+
+            questions.forEach((question, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.innerHTML = `
+                    <h3>Question ${index + 1}: ${question.text}</h3>
+                    ${question.options.map((option, i) => `
+                        <label>
+                            <input type="radio" name="q${index}" value="${i}" required>
+                            ${option}
+                        </label><br>
+                    `).join('')}
+                    <br>
+                `;
+                quizForm.appendChild(questionDiv);
+            });
+
+            // Add submit button to the form
+            const submitButton = document.createElement('button');
+            submitButton.textContent = 'Submit Quiz';
+            submitButton.type = 'button';  // Change to 'button' to prevent form submission
+            submitButton.onclick = submitQuiz;  // Attach the submitQuiz function
+            quizForm.appendChild(submitButton);
+        });
+
+        // Function to submit the quiz answers
+        function submitQuiz() {
+            const formData = new FormData(document.getElementById('quizForm'));
+            const answers = [];
+
+            // Gather all answers
+            for (let [name, value] of formData.entries()) {
+                answers.push(parseInt(value));  // Push the selected answer index
+            }
+
+            const roomId = document.getElementById('roomId').value;
+            // Emit the 'submitQuiz' event to the server with answers
+            socket.emit('submitQuiz', { roomId, answers });
+
+            // Hide the quiz form
+            document.getElementById('quizForm').style.display = 'none';
+
+            // Show a submission message
+            const messageDiv = document.createElement('div');
+            messageDiv.id = 'submissionMessage';
+            messageDiv.textContent = 'Quiz submitted successfully! Waiting for results...';
+            document.body.appendChild(messageDiv);
+        }
+
+        // Listen for quiz results from the server
+        socket.on('quizSubmitted', (data) => {
+            const { message, score } = data;
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <h2>Quiz Results</h2>
+                <p>${message}</p>
+                <p>Your score: ${score}</p>
+                <button onclick="window.location.href='/'">Return to Home</button>
+            `;
+            resultsDiv.style.display = 'block';
+
+            // Remove the submission message if it exists
+            const submissionMessage = document.getElementById('submissionMessage');
+            if (submissionMessage) {
+                submissionMessage.remove();
+            }
+        });
+
+        // Listen for errors from the server
+        socket.on('error', (message) => {
+            alert(message);
+        });
+
+        socket.on('quizSubmissionError', (message) => {
+            alert('Error submitting quiz: ' + message);
+            // Re-enable the quiz form in case of an error
+            document.getElementById('quizForm').style.display = 'block';
+            const submissionMessage = document.getElementById('submissionMessage');
+            if (submissionMessage) {
+                submissionMessage.remove();
+            }
+        });
+        
+    </script>
+</body>
+</html>

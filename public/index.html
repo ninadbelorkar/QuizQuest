@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuizQuest</title>
+    <!-- The CSS link is already here, which is good -->
+    <link rel="stylesheet" href="style.css">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <!-- Wrap the main content in a container div -->
+    <div class="container">
+        <h1>Welcome to QuizQuest</h1>
+        <button onclick="window.location.href='create.html'">Create Quiz</button>
+        <button onclick="window.location.href='join.html'">Join Quiz</button>
+        
+        <div id="viewResultsSection">
+            <h2>View Quiz Results</h2>
+            <input type="text" id="resultRoomId" placeholder="Enter Quiz ID">
+            <button onclick="viewResults()">View Results</button>
+        </div>
+
+        <!-- Remove the inline style from the results div -->
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // Initialize socket connection
+        const socket = io();
+
+        // Function to view results (moved from app.js for clarity)
+        function viewResults() {
+            const roomId = document.getElementById('resultRoomId').value;
+            if (roomId) {
+                socket.emit('getQuizResults', roomId);
+            } else {
+                alert('Please enter a valid Quiz ID');
+            }
+        }
+
+        // Event listener for quiz results
+        socket.on('quizResults', (data) => {
+            const resultsDiv = document.getElementById('results');
+            if (resultsDiv) {
+                resultsDiv.innerHTML = '<h2>Quiz Results</h2>';
+                if (data && data.length > 0) {
+                    data.forEach(p => {
+                        resultsDiv.innerHTML += `<p>${p.name}: ${p.score !== undefined ? p.score : 'Not submitted'} points</p>`;
+                    });
+                } else {
+                    resultsDiv.innerHTML += '<p>No results available for this quiz.</p>';
+                }
+                resultsDiv.style.display = 'block';
+            } else {
+                console.error('Results div not found');
+            }
+        });
+
+        // Listen for errors
+        socket.on('error', (message) => {
+            console.error('Error:', message);
+            alert(message);
+        });
+    </script>
+</body>
+</html>
+
